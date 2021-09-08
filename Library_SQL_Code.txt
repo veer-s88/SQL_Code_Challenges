@@ -1,0 +1,84 @@
+SELECT * FROM Books;
+SELECT * FROM Loans;
+SELECT * FROM Patrons;
+
+-- 1
+-- Check availability of specific Dracula books
+SELECT
+    (SELECT COUNT(Title) FROM Books
+    WHERE Title = 'Dracula')
+    -
+    (SELECT Count(b.Title) FROM Loans AS l
+    JOIN Books AS b
+    ON l.BookID = b.BookID
+    WHERE b.Title = 'Dracula' AND l.ReturnedDate IS NULL)
+    AS AvailableBooks;
+    
+-- 2
+-- Add new books to the library
+INSERT INTO Books VALUES (201, 'Dracula', 'Bram Stoker', 1897, 4819277482);
+INSERT INTO Books VALUES (202, "Gulliver''s Travels", 'Jonathan Swift', 1729, 4899254401);
+
+-- 3
+-- check out books
+INSERT INTO Loans(LoanID, BookID, PatronID, LoanDate, DueDate) VALUES(2001, (SELECT BookID FROM Books WHERE Barcode IN ('2855934983')), 
+ (SELECT PatronID FROM Patrons WHERE FirstName = 'Jack' AND LastName = 'Vaan'), '2020-08-25', '2020-09-08');
+
+INSERT INTO Loans(LoanID, BookID, PatronID, LoanDate, DueDate) VALUES(2002, (SELECT BookID FROM Books WHERE Barcode = '4043822646'), 
+ (SELECT PatronID FROM Patrons WHERE FirstName = 'Jack' AND LastName = 'Vaan'), '2020-08-25', '2020-09-08');
+ 
+SELECT * FROM Loans WHERE LoanID IN (2001, 2002);
+
+-- 4
+-- Check for books due back
+SELECT l.LoanID, l.BookID, l.PatronID, l.LoanDate, l.DueDate, b.Title, b.Author, b.Published, b.Barcode, p.FirstName, p.LastName, p.Email
+FROM Loans AS l
+JOIN Books AS b
+ON b.BookID = l.BookID
+JOIN Patrons as p
+ON p.PatronID = l.PatronID
+WHERE l.DueDate = '2020-07-13' AND l.ReturnedDate IS NULL;
+
+-- 5
+-- Return books to the library
+UPDATE Loans SET ReturnedDate = '2020-07-05' WHERE
+BookID IN(
+SELECT BookID FROM Books WHERE Barcode IN(6435968624, 5677520613, 8730298424)) AND ReturnedDate IS NULL;
+
+SELECT * FROM Loans WHERE ReturnedDate = '2020-07-05';
+
+-- 6
+-- Encourage patrons to check out books
+SELECT t.PatronID, t.cnt, p.FirstName, p.LastName, p.Email FROM
+    (SELECT PatronID, COUNT(LoanID) AS cnt 
+    FROM Loans
+    GROUP BY PatronID
+    ORDER BY cnt
+    LIMIT 10) AS t
+    
+    JOIN Patrons as p
+    ON p.PatronID = t.PatronID;
+
+-- 7 
+-- Find books to feature for an event
+SELECT Title, Author, Published FROM Books WHERE Published LIKE "189_" AND BookID IN (SELECT BookID FROM Loans WHERE ReturnedDate IS NOT NULL) 
+ORDER BY Title;
+
+-- 8
+-- Book Statistics
+SELECT Published, COUNT(Published) AS cnt FROM(
+SELECT DISTINCT ds.Title, b.Published FROM Books AS ds
+JOIN Books AS b
+ON ds.Title = b.Title)
+GROUP BY Published
+ORDER BY cnt DESC
+;
+    
+SELECT Title, COUNT(Title) AS cnt FROM
+    (SELECT l.*, b.Title FROM Loans AS l
+    JOIN Books AS b
+    ON b.BookID = l.BookID)
+    
+    GROUP BY Title
+    ORDER BY cnt DESC, Title
+    LIMIT 5;
